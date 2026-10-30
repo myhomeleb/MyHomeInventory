@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Shop Inventory</title>
+<style>
+  body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f2f2f2;color:#222}
+  header{background:#1f4e79;color:#fff;padding:14px 16px;font-size:18px;font-weight:600}
+  main{padding:16px;max-width:520px;margin:0 auto}
+  .card{background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  h3{margin:0 0 4px}
+  .hint{font-size:13px;color:#777;margin:0 0 10px}
+  label{display:block;font-size:14px;margin:14px 0 6px;color:#555}
+  input{width:100%;box-sizing:border-box;font-size:20px;padding:12px;border:1px solid #bbb;border-radius:8px}
+  button{font-size:18px;padding:14px;border:0;border-radius:8px;background:#1f4e79;color:#fff;margin-top:12px;cursor:pointer}
+  button.secondary{background:#777;width:100%}
+  button:disabled{opacity:.4}
+  .hidden{display:none!important}
+
+  /* Mode switch */
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .mode{margin:0;background:#e6ecf3;color:#1f4e79}
+  .mode.selected{background:#1f4e79;color:#fff}
+
+  /* Location picker */
+  #preview{font-size:32px;font-weight:700;text-align:center;font-family:monospace;padding:10px 0;min-height:52px;color:#1f4e79}
+  .grid{display:grid;gap:8px}
+  .grid-letters{grid-template-columns:repeat(5,1fr)}
+  .grid-numbers{grid-template-columns:repeat(6,1fr)}
+  .pick{margin:0;padding:12px 0;font-size:20px;font-weight:600;background:#e6ecf3;color:#1f4e79;border-radius:8px}
+  .pick.selected{background:#1f4e79;color:#fff}
+  #roomNote{text-align:center;font-size:20px;font-weight:600;color:#1f4e79;padding:20px 0}
+  #startBtn{width:100%;margin-top:18px}
+
+  /* Scanner */
+  #video{width:100%;border-radius:10px;background:#000;margin-top:10px}
+  #loc{font-weight:600;font-size:16px}
+  #status{text-align:center;min-height:24px;margin:10px 0;color:#555}
+  #code{font-family:monospace;font-size:18px;word-break:break-all}
+  #qty{margin-top:4px}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:8px;max-width:90%;text-align:center;z-index:10}
+</style>
+</head>
+<body>
+<header>Shop Inventory</header>
+<main>
+
+  <!-- Step 1: location -->
+  <section id="setup" class="card">
+    <h3>Location</h3>
+    <div class="modes">
+      <button id="modeShelf" class="mode selected">Shelf location</button>
+      <button id="modeRoom" class="mode">Display room</button>
+    </div>
+
+    <!-- Shelf location: aisle, unit, shelf -->
+    <div id="shelfPanel">
+      <p class="hint">Tap the aisle letter, then the unit number, then the shelf number.</p>
+      <div id="preview">– – –</div>
+
+      <label>Aisle (A–T)</label>
+      <div id="letters" class="grid grid-letters"></div>
+
+      <label>Unit (1–6)</label>
+      <div id="units" class="grid grid-numbers"></div>
+
+      <label>Shelf (1–6)</label>
+      <div id="shelves" class="grid grid-numbers"></div>
+    </div>
+
+    <!-- Display room: no sub-options -->
+    <div id="roomPanel" class="hidden">
+      <p class="hint">Counting the display room as one location.</p>
+      <div id="roomNote">Display room</div>
+    </div>
+
+    <button id="startBtn" disabled>Start scanning</button>
+  </section>
+
+  <!-- Step 2: scan -->
+  <section id="scanner" class="card hidden">
+    <div id="loc"></div>
+    <video id="video" playsinline muted></video>
+    <div id="status">Point camera at barcode</div>
+    <button id="changeBtn" class="secondary">Change location</button>
+  </section>
+
+  <!-- Step 3: quantity -->
+  <section id="entry" class="card hidden">
+    <div>Barcode: <span id="code"></span></div>
+    <label for="qty">Quantity available</label>
+    <input id="qty" inputmode="numeric" autocomplete="off">
+    <button id="saveBtn" style="width:100%">Save and continue</button>
+    <button id="cancelBtn" class="secondary">Cancel</button>
+  </section>
+
+</main>
+
+<!-- ZXing barcode library (works on iPhone and Android cameras) -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+// Paste the Apps Script web app URL here (see Code.gs setup steps)
+const APPS_SCRIPT_URL = 'PASTE_WEB_APP_URL_HERE';
+
+const LETTERS = 'ABCDEFGHIJKLMNOPQRST'.split('');
+const NUMBERS = ['1','2','3','4','5','6'];
+
+let mode = 'shelf';               // 'shelf' or 'room'
+let loc = { aisle: null, unit: null, shelf: null };
+let reader = null;
+let pendingCode = null;
+
+const $ = id => document.getElementById(id);
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ---------- Location picker ----------
+
+function makeButtons(containerId, values, key) {
+  const box = $(containerId);
+  values.forEach(v => {
+    const b = document.createElement('button');
+    b.className = 'pick';
+    b.textContent = v;
+    b.dataset.value = v;
+    b.dataset.key = key;
+    b.onclick = () => {
+      loc[key] = v;
+      refreshPicker();
+    };
+    box.appendChild(b);
+  });
+}
+
+function setMode(newMode) {
+  mode = newMode;
+  $('modeShelf').classList.toggle('selected', mode === 'shelf');
+  $('modeRoom').classList.toggle('selected', mode === 'room');
+  $('shelfPanel').classList.toggle('hidden', mode !== 'shelf');
+  $('roomPanel').classList.toggle('hidden', mode !== 'room');
+  refreshPicker();
+}
+
+function refreshPicker() {
+  document.querySelectorAll('#setup .pick').forEach(b => {
+    b.classList.toggle('selected', loc[b.dataset.key] === b.dataset.value);
+  });
+
+  if (mode === 'shelf') {
+    $('preview').textContent =
+      (loc.aisle || '–') + ' ' + (loc.unit || '–') + ' ' + (loc.shelf || '–');
+    $('startBtn').disabled = !(loc.aisle && loc.unit && loc.shelf);
+  } else {
+    // A display room is a complete location on its own
+    $('startBtn').disabled = false;
+  }
+}
+
+makeButtons('letters', LETTERS, 'aisle');
+makeButtons('units', NUMBERS, 'unit');
+makeButtons('shelves', NUMBERS, 'shelf');
+
+$('modeShelf').onclick = () => setMode('shelf');
+$('modeRoom').onclick = () => setMode('room');
+refreshPicker();
+
+// ---------- Setup -> scanner ----------
+
+function locationLabel() {
+  if (mode === 'room') return 'Display room';
+  return `Aisle ${loc.aisle} · Unit ${loc.unit} · Shelf ${loc.shelf}`;
+}
+
+$('startBtn').onclick = () => {
+  if ($('startBtn').disabled) return;
+  $('loc').textContent = locationLabel();
+  $('setup').classList.add('hidden');
+  $('scanner').classList.remove('hidden');
+  startScan();
+};
+
+$('changeBtn').onclick = () => {
+  stopScan();
+  pendingCode = null;
+  $('scanner').classList.add('hidden');
+  $('setup').classList.remove('hidden');
+};
+
+// ---------- Scanning ----------
+
+function startScan() {
+  if (!reader) reader = new ZXing.BrowserMultiFormatReader();
+  $('status').textContent = 'Point camera at barcode';
+  reader.decodeFromVideoDevice(undefined, 'video', (result) => {
+    if (result && !pendingCode) {
+      pendingCode = result.getText();
+      stopScan();
+      showEntry();
+    }
+  }).catch(e => {
+    $('status').textContent = 'Camera error: ' + e.message + '. Allow camera access and reload.';
+  });
+}
+
+function stopScan() {
+  if (reader) { try { reader.reset(); } catch (e) {} }
+}
+
+// ---------- Quantity entry ----------
+
+function showEntry() {
+  $('code').textContent = pendingCode;
+  $('qty').value = '';
+  $('scanner').classList.add('hidden');
+  $('entry').classList.remove('hidden');
+  $('qty').focus();
+}
+
+function hideEntry() {
+  $('entry').classList.add('hidden');
+  $('scanner').classList.remove('hidden');
+}
+
+$('cancelBtn').onclick = () => {
+  pendingCode = null;
+  hideEntry();
+  startScan();
+};
+
+$('qty').addEventListener('keydown', e => { if (e.key === 'Enter') $('saveBtn').click(); });
+
+$('saveBtn').onclick = async () => {
+  const qty = $('qty').value.trim();
+  if (!/^\d+$/.test(qty)) { toast('Enter a whole number for quantity'); return; }
+  const btn = $('saveBtn');
+  btn.disabled = true;
+
+  const payload = mode === 'room'
+    ? { type: 'room' }
+    : { type: 'shelf', aisle: loc.aisle, unit: loc.unit, shelf: loc.shelf };
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ...payload, barcode: pendingCode, quantity: Number(qty) })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Unknown error');
+    toast('Saved');
+    pendingCode = null;
+    hideEntry();
+    startScan();
+  } catch (e) {
+    // Keep the scan on screen so the staff member can retry
+    toast('Not saved (' + e.message + '). Tap Save to try again.');
+  } finally {
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
