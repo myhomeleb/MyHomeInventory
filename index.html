@@ -1,61 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Shop Inventory</title>
+<title>My Home Inventory</title>
 <style>
-  body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f2f2f2;color:#222}
-  header{background:#1f4e79;color:#fff;padding:14px 16px;font-size:18px;font-weight:600}
+  body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#fbfaf6;color:#222}
+  header{background:#7fa892;color:#fff;padding:14px 16px;font-size:18px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+  header button.langBtn{width:auto;margin:0;padding:6px 12px;font-size:14px;background:#98b9a4}
   main{padding:16px;max-width:520px;margin:0 auto}
   .card{background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-  h3{margin:0 0 4px}
+  h3{margin:0 0 6px}
   .hint{font-size:13px;color:#777;margin:0 0 10px}
+  .locline{font-weight:600;color:#3f6652;margin-bottom:8px}
+  .progress{font-size:14px;color:#555;margin:6px 0}
   label{display:block;font-size:14px;margin:14px 0 6px;color:#555}
-  input{width:100%;box-sizing:border-box;font-size:20px;padding:12px;border:1px solid #bbb;border-radius:8px}
-  button{font-size:18px;padding:14px;border:0;border-radius:8px;background:#1f4e79;color:#fff;margin-top:12px;cursor:pointer}
-  button.secondary{background:#777;width:100%}
+  input,textarea{width:100%;box-sizing:border-box;font-size:20px;padding:12px;border:1px solid #bbb;border-radius:8px;font-family:inherit}
+  textarea{font-size:16px;min-height:70px;resize:vertical}
+  button{font-size:18px;padding:14px;border:0;border-radius:8px;background:#7fa892;color:#fff;margin-top:12px;cursor:pointer;width:100%}
+  button.secondary{background:#a8a29e}
+  button.danger{background:#d98c7e}
   button:disabled{opacity:.4}
   .hidden{display:none!important}
 
-  /* Mode switch */
+  /* Language choice */
+  .langChoice{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .langChoice button{margin:0;padding:28px 0;font-size:22px;background:#eef4ef;color:#3f6652}
+
+  /* Location type buttons: stock room is large, the other two are smaller */
   .modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-  .mode{margin:0;background:#e6ecf3;color:#1f4e79}
-  .mode.selected{background:#1f4e79;color:#fff}
+  .modes button{margin:0;padding:12px 4px;font-size:16px;background:#eef4ef;color:#3f6652}
+  .modes button.selected{background:#7fa892;color:#fff}
+  #modeShelf{grid-column:1 / -1;padding:24px 8px;font-size:22px}
 
   /* Location picker */
-  #preview{font-size:32px;font-weight:700;text-align:center;font-family:monospace;padding:10px 0;min-height:52px;color:#1f4e79}
+  #preview{font-size:32px;font-weight:700;text-align:center;font-family:monospace;padding:10px 0;min-height:52px;color:#3f6652;direction:ltr}
   .grid{display:grid;gap:8px}
   .grid-letters{grid-template-columns:repeat(5,1fr)}
   .grid-numbers{grid-template-columns:repeat(6,1fr)}
-  .pick{margin:0;padding:12px 0;font-size:20px;font-weight:600;background:#e6ecf3;color:#1f4e79;border-radius:8px}
-  .pick.selected{background:#1f4e79;color:#fff}
-  #roomNote{text-align:center;font-size:20px;font-weight:600;color:#1f4e79;padding:20px 0}
-  #startBtn{width:100%;margin-top:18px}
+  .pick{margin:0;padding:12px 0;font-size:20px;font-weight:600;background:#eef4ef;color:#3f6652;border-radius:8px}
+  .pick.selected{background:#7fa892;color:#fff}
+  #singleNote{text-align:center;font-size:20px;font-weight:600;color:#3f6652;padding:20px 0}
+
+  /* Photo */
+  #photoPreview{width:100%;border-radius:10px;margin-top:12px;background:#eee}
+  #photoInput{display:none}
 
   /* Scanner */
   #video{width:100%;border-radius:10px;background:#000;margin-top:10px}
-  #loc{font-weight:600;font-size:16px}
   #status{text-align:center;min-height:24px;margin:10px 0;color:#555}
-  #code{font-family:monospace;font-size:18px;word-break:break-all}
-  #qty{margin-top:4px}
+  #code{font-family:monospace;font-size:18px;word-break:break-all;direction:ltr;unicode-bidi:embed}
+  #qty{direction:ltr;text-align:start}
 
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:8px;max-width:90%;text-align:center;z-index:10}
 </style>
 </head>
 <body>
-<header>Shop Inventory</header>
+<header>
+  <span>My Home Inventory</span>
+  <button id="langToggle" class="langBtn hidden"></button>
+</header>
 <main>
 
-  <!-- Step 1: location -->
-  <section id="setup" class="card">
-    <h3>Location</h3>
+  <!-- Language choice (shown when the app opens) -->
+  <section id="langScreen" class="card">
+    <h3>Choose language / اختر اللغة</h3>
+    <div class="langChoice">
+      <button id="chooseEn">English</button>
+      <button id="chooseAr">العربية</button>
+    </div>
+  </section>
+
+  <!-- Location setup -->
+  <section id="setup" class="card hidden">
+    <h3 data-i18n="location"></h3>
     <div class="modes">
-      <button id="modeShelf" class="mode selected">Shelf location</button>
-      <button id="modeRoom" class="mode">Display room</button>
+      <button id="modeShelf" class="selected" data-i18n="shelfLocation"></button>
+      <button id="modeRoom" data-i18n="displayRoom"></button>
+      <button id="modeWarehouse" data-i18n="warehouse"></button>
     </div>
 
-    <!-- Shelf location: aisle, unit, shelf -->
     <div id="shelfPanel">
       <p class="hint">Tap the aisle letter, then the unit number, then the shelf number.</p>
       <div id="preview">– – –</div>
@@ -70,30 +94,48 @@
       <div id="shelves" class="grid grid-numbers"></div>
     </div>
 
-    <!-- Display room: no sub-options -->
-    <div id="roomPanel" class="hidden">
-      <p class="hint">Counting the display room as one location.</p>
-      <div id="roomNote">Display room</div>
+    <div id="singlePanel" class="hidden">
+      <p class="hint" id="singleHint"></p>
+      <div id="singleNote"></div>
     </div>
 
-    <button id="startBtn" disabled>Start scanning</button>
+    <button id="startBtn" disabled data-i18n="continue"></button>
   </section>
 
-  <!-- Step 2: scan -->
+  <!-- Step 1: photo -->
+  <section id="photoStep" class="card hidden">
+    <div class="locline" data-loc></div>
+    <h3 data-i18n="step1"></h3>
+    <input type="file" id="photoInput" accept="image/*" capture="environment">
+    <img id="photoPreview" class="hidden" alt="">
+    <button id="takePhotoBtn" data-i18n="takePhoto"></button>
+    <button id="nextPhotoBtn" disabled data-i18n="nextScan"></button>
+    <button id="undoBtn" class="danger hidden" data-i18n="undo"></button>
+    <button class="secondary changeLocBtn" data-i18n="changeLoc"></button>
+  </section>
+
+  <!-- Step 2: barcode -->
   <section id="scanner" class="card hidden">
-    <div id="loc"></div>
+    <div class="locline" data-loc></div>
+    <div id="progress" class="progress"></div>
+    <h3 data-i18n="step2"></h3>
     <video id="video" playsinline muted></video>
-    <div id="status">Point camera at barcode</div>
-    <button id="changeBtn" class="secondary">Change location</button>
+    <div id="status"></div>
+    <button id="backToPhotoBtn" class="secondary" data-i18n="backPhoto"></button>
+    <button class="secondary changeLocBtn" data-i18n="changeLoc"></button>
   </section>
 
-  <!-- Step 3: quantity -->
+  <!-- Step 3: count and note -->
   <section id="entry" class="card hidden">
-    <div>Barcode: <span id="code"></span></div>
-    <label for="qty">Quantity available</label>
+    <div class="locline" data-loc></div>
+    <h3 data-i18n="step3"></h3>
+    <div><span data-i18n="barcodeLabel"></span> <span id="code"></span></div>
+    <label for="qty" data-i18n="numberOfItems"></label>
     <input id="qty" inputmode="numeric" autocomplete="off">
-    <button id="saveBtn" style="width:100%">Save and continue</button>
-    <button id="cancelBtn" class="secondary">Cancel</button>
+    <label for="note" data-i18n="note"></label>
+    <textarea id="note"></textarea>
+    <button id="saveBtn" data-i18n="save"></button>
+    <button id="cancelBtn" class="secondary" data-i18n="cancel"></button>
   </section>
 
 </main>
@@ -104,22 +146,197 @@
 // Paste the Apps Script web app URL here (see Code.gs setup steps)
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-pZ7aKlUvigmSRm0uLyQXzwxvir2kmwVUBos_ghGc8DW0XSyssIvxduX9GS0Rcc2afQ/exec';
 
+// ---------- Translations ----------
+// Entries that are the same in both languages stay in English on purpose.
+const T = {
+  en: {
+    location: 'Location',
+    shelfLocation: 'Stock room (shelves)',
+    displayRoom: 'Display room',
+    warehouse: 'Warehouse (not displayed)',
+    singleDisplayHint: 'Counting the display room as one location.',
+    singleWarehouseHint: 'Counting the warehouse as one location.',
+    continue: 'Continue',
+    step1: '1. Take a photo',
+    takePhoto: 'Take photo',
+    retakePhoto: 'Retake photo',
+    nextScan: 'Next: scan barcode',
+    undo: 'Undo last entry',
+    changeLoc: 'Change location',
+    step2: '2. Scan the barcode',
+    pointCamera: 'Point camera at barcode',
+    backPhoto: 'Back to photo',
+    progress: 'Counted here so far: {items} items, {units} units',
+    step3: '3. Enter the count',
+    barcodeLabel: 'Barcode:',
+    numberOfItems: 'Number of items',
+    note: 'Note (optional)',
+    save: 'Save',
+    cancel: 'Cancel',
+    saved: 'Saved',
+    undone: 'Last entry removed',
+    undoFailed: 'Could not undo: {msg}',
+    notSaved: 'Not saved ({msg}). Tap Save to try again.',
+    wholeNumber: 'Enter a whole number for the count',
+    takePhotoFirst: 'Take a photo first',
+    cannotReadPhoto: 'Could not read photo',
+    cameraError: 'Camera error: {msg}. Allow camera access and reload.',
+    duplicate: 'This item was already counted here: {entries} entries, {units} units.\n\nCount it again as a separate entry?',
+    unknownError: 'Unknown error'
+  },
+  ar: {
+    location: 'المكان',
+    shelfLocation: 'مستودع (رفوف)',
+    displayRoom: 'صالة العرض',
+    warehouse: 'مستودع (غير معروض)',
+    singleDisplayHint: 'Counting the display room as one location.',
+    singleWarehouseHint: 'Counting the warehouse as one location.',
+    continue: 'متابعة',
+    step1: '1. التقاط صورة',
+    takePhoto: 'التقط صورة',
+    retakePhoto: 'أعد التقاط الصورة',
+    nextScan: 'التالي: امسح الباركود',
+    undo: 'تراجع عن آخر إدخال',
+    changeLoc: 'تغيير المكان',
+    step2: '2. امسح الباركود',
+    pointCamera: 'وجّه الكاميرا نحو الباركود',
+    backPhoto: 'العودة إلى الصورة',
+    progress: 'المحسوب هنا حتى الآن: {items} صنفاً، {units} وحدة',
+    step3: '3. أدخل الكمية',
+    barcodeLabel: 'الباركود:',
+    numberOfItems: 'عدد القطع',
+    note: 'ملاحظة (اختياري)',
+    save: 'حفظ',
+    cancel: 'إلغاء',
+    saved: 'تم الحفظ',
+    undone: 'تم حذف آخر إدخال',
+    undoFailed: 'تعذر التراجع: {msg}',
+    notSaved: 'لم يتم الحفظ ({msg}). اضغط حفظ للمحاولة مرة أخرى.',
+    wholeNumber: 'أدخل عدداً صحيحاً',
+    takePhotoFirst: 'التقط صورة أولاً',
+    cannotReadPhoto: 'تعذرت قراءة الصورة',
+    cameraError: 'خطأ في الكاميرا: {msg}. اسمح بالوصول إلى الكاميرا وأعد التحميل.',
+    duplicate: 'تم إدخال هذا الصنف من قبل.\n\nهل تريد إدخاله مرة أخرى؟',
+    unknownError: 'خطأ غير معروف'
+  }
+};
+
 const LETTERS = 'ABCDEFGHIJKLMNOPQRST'.split('');
 const NUMBERS = ['1','2','3','4','5','6'];
 
-let mode = 'shelf';               // 'shelf' or 'room'
+let lang = 'en';
+let mode = 'shelf';                       // 'shelf', 'room', or 'warehouse'
 let loc = { aisle: null, unit: null, shelf: null };
 let reader = null;
-let pendingCode = null;
+let pendingCode = null;                   // barcode waiting for a count
+let currentPhoto = null;                  // base64 JPEG of the current item (no prefix)
+let lastSaved = null;                     // {row, barcode} of the most recent save
 
 const $ = id => document.getElementById(id);
+const SECTIONS = ['langScreen', 'setup', 'photoStep', 'scanner', 'entry'];
+
+function t(key, vars) {
+  let s = (T[lang] && T[lang][key]) || T.en[key] || key;
+  if (vars) Object.keys(vars).forEach(k => { s = s.replace('{' + k + '}', vars[k]); });
+  return s;
+}
+
+function showOnly(id) {
+  SECTIONS.forEach(s => $(s).classList.toggle('hidden', s !== id));
+}
 
 function toast(msg) {
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+// ---------- Language ----------
+
+function applyLanguage() {
+  document.documentElement.lang = lang === 'ar' ? 'ar' : 'en';
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  $('langToggle').textContent = lang === 'ar' ? 'English' : 'العربية';
+  $('langToggle').classList.remove('hidden');
+  if (currentPhoto) $('takePhotoBtn').textContent = t('retakePhoto');
+  updateSinglePanel();
+  updateLocLines();
+  updateUndo();
+  refreshPicker();
+}
+
+function chooseLanguage(l) {
+  lang = l;
+  applyLanguage();
+  showOnly('setup');
+}
+
+$('chooseEn').onclick = () => chooseLanguage('en');
+$('chooseAr').onclick = () => chooseLanguage('ar');
+$('langToggle').onclick = () => {
+  lang = lang === 'ar' ? 'en' : 'ar';
+  applyLanguage();
+  if (!$('scanner').classList.contains('hidden')) refreshProgress();
+};
+
+// ---------- Location names ----------
+
+// Must match the Location column in the sheet (always English)
+function locationKey() {
+  if (mode === 'room') return 'Display room';
+  if (mode === 'warehouse') return 'Warehouse';
+  return `${loc.aisle}-${loc.unit}-${loc.shelf}`;
+}
+
+// What staff see on screen (translated)
+function locationLabel() {
+  if (mode === 'room') return t('displayRoom');
+  if (mode === 'warehouse') return t('warehouse');
+  return `${loc.aisle} · ${loc.unit} · ${loc.shelf}`;
+}
+
+function updateLocLines() {
+  document.querySelectorAll('[data-loc]').forEach(el => el.textContent = locationLabel());
+}
+
+function updateSinglePanel() {
+  if (mode === 'room') {
+    $('singleNote').textContent = t('displayRoom');
+    $('singleHint').textContent = t('singleDisplayHint');
+  } else if (mode === 'warehouse') {
+    $('singleNote').textContent = t('warehouse');
+    $('singleHint').textContent = t('singleWarehouseHint');
+  }
+}
+
+// ---------- Sheet API helpers ----------
+
+async function apiGet(params) {
+  const res = await fetch(APPS_SCRIPT_URL + '?' + new URLSearchParams(params));
+  return res.json();
+}
+
+async function apiPost(body) {
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+async function refreshProgress() {
+  try {
+    const p = await apiGet({ action: 'progress', location: locationKey() });
+    $('progress').textContent = t('progress', { items: p.items, units: p.units });
+  } catch (e) {
+    $('progress').textContent = '';
+  }
 }
 
 // ---------- Location picker ----------
@@ -132,10 +349,7 @@ function makeButtons(containerId, values, key) {
     b.textContent = v;
     b.dataset.value = v;
     b.dataset.key = key;
-    b.onclick = () => {
-      loc[key] = v;
-      refreshPicker();
-    };
+    b.onclick = () => { loc[key] = v; refreshPicker(); };
     box.appendChild(b);
   });
 }
@@ -144,8 +358,10 @@ function setMode(newMode) {
   mode = newMode;
   $('modeShelf').classList.toggle('selected', mode === 'shelf');
   $('modeRoom').classList.toggle('selected', mode === 'room');
+  $('modeWarehouse').classList.toggle('selected', mode === 'warehouse');
   $('shelfPanel').classList.toggle('hidden', mode !== 'shelf');
-  $('roomPanel').classList.toggle('hidden', mode !== 'room');
+  $('singlePanel').classList.toggle('hidden', mode === 'shelf');
+  updateSinglePanel();
   refreshPicker();
 }
 
@@ -153,13 +369,12 @@ function refreshPicker() {
   document.querySelectorAll('#setup .pick').forEach(b => {
     b.classList.toggle('selected', loc[b.dataset.key] === b.dataset.value);
   });
-
   if (mode === 'shelf') {
     $('preview').textContent =
       (loc.aisle || '–') + ' ' + (loc.unit || '–') + ' ' + (loc.shelf || '–');
     $('startBtn').disabled = !(loc.aisle && loc.unit && loc.shelf);
   } else {
-    // A display room is a complete location on its own
+    // Display room and warehouse are complete locations on their own
     $('startBtn').disabled = false;
   }
 }
@@ -167,46 +382,119 @@ function refreshPicker() {
 makeButtons('letters', LETTERS, 'aisle');
 makeButtons('units', NUMBERS, 'unit');
 makeButtons('shelves', NUMBERS, 'shelf');
-
 $('modeShelf').onclick = () => setMode('shelf');
 $('modeRoom').onclick = () => setMode('room');
-refreshPicker();
+$('modeWarehouse').onclick = () => setMode('warehouse');
 
-// ---------- Setup -> scanner ----------
-
-function locationLabel() {
-  if (mode === 'room') return 'Display room';
-  return `Aisle ${loc.aisle} · Unit ${loc.unit} · Shelf ${loc.shelf}`;
-}
+// ---------- Location -> Step 1 ----------
 
 $('startBtn').onclick = () => {
   if ($('startBtn').disabled) return;
-  $('loc').textContent = locationLabel();
-  $('setup').classList.add('hidden');
-  $('scanner').classList.remove('hidden');
+  updateLocLines();
+  resetItem();
+  showOnly('photoStep');
+  updateUndo();
+};
+
+document.querySelectorAll('.changeLocBtn').forEach(b => b.onclick = () => {
+  stopScan();
+  pendingCode = null;
+  resetItem();
+  showOnly('setup');
+});
+
+// ---------- Step 1: photo ----------
+
+function resetItem() {
+  currentPhoto = null;
+  pendingCode = null;
+  $('photoPreview').classList.add('hidden');
+  $('photoPreview').src = '';
+  $('takePhotoBtn').textContent = t('takePhoto');
+  $('nextPhotoBtn').disabled = true;
+  $('qty').value = '';
+  $('note').value = '';
+}
+
+function updateUndo() {
+  $('undoBtn').classList.toggle('hidden', !lastSaved);
+}
+
+// Shrink the photo so it uploads quickly on a phone connection
+function shrinkImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const max = 1024;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.onerror = () => reject(new Error(t('cannotReadPhoto')));
+    img.src = url;
+  });
+}
+
+$('takePhotoBtn').onclick = () => $('photoInput').click();
+
+$('photoInput').onchange = async e => {
+  const file = e.target.files[0];
+  e.target.value = '';                    // allows the same file to be picked again
+  if (!file) return;
+  try {
+    const dataUrl = await shrinkImage(file);
+    currentPhoto = dataUrl.split(',')[1];
+    $('photoPreview').src = dataUrl;
+    $('photoPreview').classList.remove('hidden');
+    $('takePhotoBtn').textContent = t('retakePhoto');
+    $('nextPhotoBtn').disabled = false;
+  } catch (err) {
+    toast(err.message);
+  }
+};
+
+$('nextPhotoBtn').onclick = () => {
+  if (!currentPhoto) { toast(t('takePhotoFirst')); return; }
+  showOnly('scanner');
+  refreshProgress();
   startScan();
 };
 
-$('changeBtn').onclick = () => {
-  stopScan();
-  pendingCode = null;
-  $('scanner').classList.add('hidden');
-  $('setup').classList.remove('hidden');
+// Undo the most recent save (row and its photo)
+$('undoBtn').onclick = async () => {
+  if (!lastSaved) return;
+  $('undoBtn').disabled = true;
+  try {
+    const json = await apiPost({ action: 'undo', row: lastSaved.row, barcode: lastSaved.barcode });
+    if (!json.ok) throw new Error(json.error || t('unknownError'));
+    toast(t('undone'));
+    lastSaved = null;
+    updateUndo();
+  } catch (e) {
+    toast(t('undoFailed', { msg: e.message }));
+  } finally {
+    $('undoBtn').disabled = false;
+  }
 };
 
-// ---------- Scanning ----------
+// ---------- Step 2: barcode ----------
 
 function startScan() {
   if (!reader) reader = new ZXing.BrowserMultiFormatReader();
-  $('status').textContent = 'Point camera at barcode';
+  $('status').textContent = t('pointCamera');
   reader.decodeFromVideoDevice(undefined, 'video', (result) => {
     if (result && !pendingCode) {
       pendingCode = result.getText();
       stopScan();
-      showEntry();
+      handleScanned();
     }
   }).catch(e => {
-    $('status').textContent = 'Camera error: ' + e.message + '. Allow camera access and reload.';
+    $('status').textContent = t('cameraError', { msg: e.message });
   });
 }
 
@@ -214,24 +502,45 @@ function stopScan() {
   if (reader) { try { reader.reset(); } catch (e) {} }
 }
 
-// ---------- Quantity entry ----------
+// Warn if this barcode was already counted at this location
+async function handleScanned() {
+  try {
+    const res = await apiGet({ action: 'check', location: locationKey(), barcode: pendingCode });
+    const c = res.check;
+    if (c && c.entries > 0) {
+      const again = confirm(t('duplicate', { entries: c.entries, units: c.units }));
+      if (!again) {
+        pendingCode = null;
+        startScan();
+        return;
+      }
+    }
+  } catch (e) {
+    // If the check fails, let the staff member continue normally
+  }
+  showEntry();
+}
+
+$('backToPhotoBtn').onclick = () => {
+  stopScan();
+  pendingCode = null;
+  showOnly('photoStep');
+  updateUndo();
+};
+
+// ---------- Step 3: count and note ----------
 
 function showEntry() {
   $('code').textContent = pendingCode;
   $('qty').value = '';
-  $('scanner').classList.add('hidden');
-  $('entry').classList.remove('hidden');
+  $('note').value = '';
+  showOnly('entry');
   $('qty').focus();
-}
-
-function hideEntry() {
-  $('entry').classList.add('hidden');
-  $('scanner').classList.remove('hidden');
 }
 
 $('cancelBtn').onclick = () => {
   pendingCode = null;
-  hideEntry();
+  showOnly('scanner');
   startScan();
 };
 
@@ -239,33 +548,39 @@ $('qty').addEventListener('keydown', e => { if (e.key === 'Enter') $('saveBtn').
 
 $('saveBtn').onclick = async () => {
   const qty = $('qty').value.trim();
-  if (!/^\d+$/.test(qty)) { toast('Enter a whole number for quantity'); return; }
+  if (!/^\d+$/.test(qty)) { toast(t('wholeNumber')); return; }
   const btn = $('saveBtn');
   btn.disabled = true;
 
-  const payload = mode === 'room'
-    ? { type: 'room' }
-    : { type: 'shelf', aisle: loc.aisle, unit: loc.unit, shelf: loc.shelf };
+  const location = mode === 'shelf'
+    ? { type: 'shelf', aisle: loc.aisle, unit: loc.unit, shelf: loc.shelf }
+    : { type: mode };                     // 'room' or 'warehouse'
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...payload, barcode: pendingCode, quantity: Number(qty) })
+    const json = await apiPost({
+      action: 'save',
+      ...location,
+      barcode: pendingCode,
+      quantity: Number(qty),
+      note: $('note').value.trim(),
+      photo: currentPhoto
     });
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error || 'Unknown error');
-    toast('Saved');
-    pendingCode = null;
-    hideEntry();
-    startScan();
+    if (!json.ok) throw new Error(json.error || t('unknownError'));
+    toast(t('saved'));
+    lastSaved = { row: json.row, barcode: pendingCode };
+    resetItem();
+    showOnly('photoStep');               // next item starts with a photo
+    updateUndo();
   } catch (e) {
-    // Keep the scan on screen so the staff member can retry
-    toast('Not saved (' + e.message + '). Tap Save to try again.');
+    // Stay on this screen so the staff member can tap Save again
+    toast(t('notSaved', { msg: e.message }));
   } finally {
     btn.disabled = false;
   }
 };
+
+// Start on the language choice
+showOnly('langScreen');
 </script>
 </body>
 </html>
